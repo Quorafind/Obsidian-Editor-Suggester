@@ -1,8 +1,8 @@
-/*
+.custom-suggester-textarea {
+	width: 550px;
+	height: 250px;
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+	resize: none;
 
-If your plugin does not need CSS, delete this file.
-
-*/
+	overflow: auto;
+}
