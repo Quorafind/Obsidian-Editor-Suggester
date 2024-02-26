@@ -6,3 +6,199 @@
 
 	overflow: auto;
 }
+
+.custom-suggester-setting {
+	display: flex;
+	flex-direction: column;
+}
+
+.custom-suggester-setting .custom-suggester-setting-header {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 0.75em 0;
+	width: -webkit-fill-available;
+}
+
+.custom-suggester-setting .custom-suggester-setting-header .custom-suggester-setting-name-component {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 1 1 auto;
+}
+
+.custom-suggester-setting .custom-suggester-setting-header .custom-suggester-setting-name-component .custom-suggester-setting-name {
+	font-size: 1.1em;
+	font-weight: 600;
+}
+
+.custom-suggester-setting .custom-suggester-regex-info {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	width: 100%;
+
+	gap: var(--size-2-2);
+}
+
+.custom-suggester-setting .custom-suggester-regex-info .custom-suggester-regex-intro {
+	font-size: var(--size-4-3);
+	color: var(--text-faint);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.custom-suggester {
+	display: flex;
+	flex-direction: column;
+	padding: var(--size-4-4);
+	width: -webkit-fill-available;
+
+	/*border-top: 1px dashed var(--background-modifier-border);*/
+
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+
+	gap: 0.5em;
+
+	box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+	&:hover {
+		box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+	}
+}
+
+.custom-suggester-setting .custom-suggester-suggestion, .custom-suggester-setting .custom-suggester-prefix, .custom-suggester-setting .custom-suggester-regex, .custom-suggester-setting .custom-suggester-suffix, .custom-suggester-setting .custom-suggester-name {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+
+	width: -webkit-fill-available;
+
+	font-size: 1em;
+	font-weight: 600;
+}
+
+.custom-suggester-setting .custom-suggester-suggestion .custom-suggester-suggestion-btn-group {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+
+	position: relative;
+}
+
+.custom-suggester-suggestion-list-group {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+
+	gap: var(--size-4-4);
+
+	z-index: 100;
+}
+
+.custom-suggester-suggestion-list-group:hover > .custom-suggester-suggestion-list {
+	display: flex;
+}
+
+.custom-suggester-suggestion-list {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+
+	gap: var(--size-2-2);
+
+	width: 140px;
+	height: auto;
+	padding: var(--size-2-2);
+	font-size: var(--size-4-3);
+
+	position: absolute;
+	left: -32px;
+	top: 28px;
+
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.custom-suggester-suggestion-list .custom-suggester-suggestion-item:not(:last-child):after {
+	content: "";
+	width: 100%;
+	height: 1px;
+	background: var(--background-modifier-border);
+	margin-top: var(--size-2-2);
+}
+
+.custom-suggester-suggestion-list .custom-suggester-suggestion-item {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	padding: var(--size-2-1);
+}
+
+.custom-suggester-suggestion-list.hide {
+	display: none;
+}
+
+.custom-suggester-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+
+	gap: var(--size-4-4);
+}
+
+.custom-suggester-modal .modal-content .custom-suggester-suggestion-input {
+	width: 100%;
+	resize: none;
+	height: 350px;
+}
+
+.custom-suggester-modal {
+	width: 350px;
+}
+
+.custom-suggester-modal .modal-content .custom-suggester-suggestion-input:focus {
+	box-shadow: none;
+}
+
+.custom-suggester-modal .modal-content .custom-suggester-btn-group {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+
+	width: 100%;
+	gap: var(--size-4-2);
+}
+
+.custom-setting-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 18px;
+	font-weight: 500;
+	margin-bottom: var(--size-4-4);
+}
+
+.custom-setting-import-export {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+
+@media screen and (max-width: 768px) {
+	.custom-suggester-regex-intro {
+		display: none;
+	}
+
+}

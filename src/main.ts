@@ -1,34 +1,26 @@
 import {
-	App, debounce, Editor, EditorPosition, EditorSuggest, EditorSuggestContext,
-	EditorSuggestTriggerInfo, FuzzyMatch, Plugin, PluginSettingTab, prepareFuzzySearch, Setting
+	App,
+	Editor,
+	EditorPosition,
+	EditorSuggest,
+	EditorSuggestContext,
+	EditorSuggestTriggerInfo,
+	FuzzyMatch,
+	Plugin,
+	prepareFuzzySearch
 } from 'obsidian';
+import { CustomSuggesterSettings, CustomSuggesterSettingTab, DEFAULT_SETTINGS } from "./settings";
 
-interface TriggerInfo {
-	before: string;
-	after: string;
-	matchRegex: string;
+export interface SuggesterInfo {
+	name: string;
+	enable: boolean;
+	trigger: {
+		before: string;
+		after: string;
+		matchRegex: string;
+	},
 	suggestion: string[];
 }
-
-interface CustomSuggesterSettings {
-	triggers: TriggerInfo[];
-}
-
-const DEFAULT_SETTINGS = {
-	triggers: [
-		{
-			before: '【',
-			after: '】',
-			matchRegex: '【([^】]*)$',
-			suggestion: ["已完成，等待确认",
-				"交底制作/沟通中",
-				"已移交流程处理",
-				"已放弃",
-				"已移交代理人",
-				"已完成，客户确认"],
-		},
-	],
-};
 
 export default class CustomSuggesterPlugin extends Plugin {
 	private settingTab: CustomSuggesterSettingTab;
@@ -73,7 +65,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 	settings: CustomSuggesterSettings;
 
 	hasBracketEnd = false;
-	matchedTrigger: TriggerInfo;
+	currentSuggester: SuggesterInfo;
 
 	readonly suggesterType = 'custom-suggester';
 
@@ -85,7 +77,6 @@ export class CustomSuggester extends EditorSuggest<string> {
 
 	updateSettings(settings: CustomSuggesterSettings) {
 		this.settings = settings;
-		console.log(this.settings);
 	}
 
 	// readonly CUSTOM_BRACKET_REGEX = /【([^】]*)$/;
@@ -135,21 +126,21 @@ export class CustomSuggester extends EditorSuggest<string> {
 			return nextBracketIndex === -1 ? 0 : nextBracketIndex;
 		};
 
-		for (const trigger of this.settings.triggers) {
-			const index = getBracketIndex(textUntilCursor, trigger.after || trigger.before);
+		for (const suggester of this.settings.suggesters.filter((s) => s.enable || !s.trigger.before)) {
+			const index = getBracketIndex(textUntilCursor, suggester.trigger.after || suggester.trigger.before);
 			// console.log(index, trigger.after);
 			const targetText = textUntilCursor.slice(index);
 			// console.log(trigger.matchRegex, targetText);
-			const match = targetText.match(new RegExp(trigger.matchRegex));
+			const match = targetText.match(new RegExp(suggester.trigger.matchRegex));
 
-			// console.log(targetText, match, trigger.matchRegex);
+			// console.log(targetText, match, suggester.trigger.matchRegex);
 
 			const nextWhiteSpaceIndex = textAfterCursor.search(/^\s/);
-			const cursorOffset = nextWhiteSpaceIndex === -1 ? getNextBracketIndex(textAfterCursor, trigger.after || trigger.before) : nextWhiteSpaceIndex;
+			const cursorOffset = nextWhiteSpaceIndex === -1 ? getNextBracketIndex(textAfterCursor, suggester.trigger.after || suggester.trigger.before) : nextWhiteSpaceIndex;
 
 			if (match) {
 				const matchedText = match[1];
-				this.matchedTrigger = trigger;
+				this.currentSuggester = suggester;
 
 				// console.log(matchedText);
 
@@ -172,7 +163,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 
 	getSuggestions(context: EditorSuggestContext): string[] {
 		const lowerCaseInputStr = context.query.toLocaleLowerCase();
-		const data = this.matchedTrigger.suggestion;
+		const data = this.currentSuggester.suggestion;
 
 		// console.log(data, lowerCaseInputStr);
 
@@ -187,7 +178,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
 		this.editor.replaceRange(
-			value + (this.hasBracketEnd ? '' : this.matchedTrigger.after),
+			value + (this.hasBracketEnd ? '' : this.currentSuggester.trigger.after),
 			{line: this.cursor.line, ch: this.context?.start.ch || this.cursor.ch},
 			{
 				line: this.cursor.line,
@@ -196,58 +187,9 @@ export class CustomSuggester extends EditorSuggest<string> {
 		);
 		this.editor.setCursor({
 			line: this.cursor.line,
-			ch: this.cursor.ch + value.length - (this.cursor.ch - (this.context?.start?.ch || this.cursor.ch)) + (this.hasBracketEnd ? 0 : this.matchedTrigger.after.length),
+			ch: this.cursor.ch + value.length - (this.cursor.ch - (this.context?.start?.ch || this.cursor.ch)) + (this.hasBracketEnd ? 0 : this.currentSuggester.trigger.after.length),
 		});
 		this.close();
-	}
-}
-
-export class CustomSuggesterSettingTab extends PluginSettingTab {
-	plugin: CustomSuggesterPlugin;
-
-	constructor(app: App, plugin: CustomSuggesterPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	debounceApplySettingsUpdate = debounce(
-		async () => {
-			await this.plugin.saveSettings();
-		},
-		1000,
-		true,
-	);
-
-	applySettingsUpdate() {
-		this.debounceApplySettingsUpdate();
-	}
-
-	async display() {
-		await this.plugin.loadSettings();
-
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		containerEl.createEl('h2', {text: '📍 Custom Suggester'});
-
-		new Setting(containerEl)
-			.setName('Config trigger method')
-			.setDesc('Config the trigger method for the suggester.')
-			.addTextArea((text) => {
-				text.inputEl.toggleClass('custom-suggester-textarea', true);
-				text
-					.setPlaceholder('Trigger method')
-					.setValue(JSON.stringify(this.plugin.settings.triggers, null, 4))
-					.onChange(async (value) => {
-						try {
-							this.plugin.settings.triggers = JSON.parse(value);
-							this.applySettingsUpdate();
-						} catch (e) {
-							console.error(e);
-						}
-					});
-			});
 	}
 }
 
