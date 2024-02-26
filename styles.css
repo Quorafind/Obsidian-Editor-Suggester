@@ -218,10 +218,10 @@
 	justify-content: flex-start;
 	gap: var(--size-2-2);
 
-	max-width: 120px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	/*max-width: 120px;*/
+	/*overflow: hidden;*/
+	/*text-overflow: ellipsis;*/
+	/*white-space: nowrap;*/
 
 	--icon-size: var(--size-4-3);
 }
