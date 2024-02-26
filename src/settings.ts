@@ -3,6 +3,8 @@ import CustomSuggesterPlugin, { SuggesterInfo } from "./main";
 
 export interface CustomSuggesterSettings {
 	suggesters: SuggesterInfo[];
+	showAddNewButton: boolean;
+	maxMatchWordlength: number;
 }
 
 export const DEFAULT_SETTINGS: CustomSuggesterSettings = {
@@ -21,7 +23,9 @@ export const DEFAULT_SETTINGS: CustomSuggesterSettings = {
 				"已完成，客户确认"
 			],
 		},
-	]
+	],
+	showAddNewButton: true,
+	maxMatchWordlength: 10,
 };
 
 export class CustomSuggesterSettingTab extends PluginSettingTab {
@@ -82,6 +86,26 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 			const settings = JSON.stringify(this.plugin.settings, null, 2);
 			await navigator.clipboard.writeText(settings);
 		});
+
+		new Setting(containerEl)
+			.setName('Show add new button')
+			.setDesc('Show add new button in the suggestion list')
+			.addToggle((toggle) => toggle
+				.setValue(settings.showAddNewButton)
+				.onChange(async (value) => {
+					settings.showAddNewButton = value;
+					this.applySettingsUpdate();
+					setTimeout(() => {
+						this.display();
+					}, 500);
+				}));
+
+		settings.showAddNewButton && new Setting(containerEl).setName('Max match word length').setDesc('Max match word length').addSlider(
+			(slider) => slider.setLimits(4, 20, 1).setDynamicTooltip().setValue(settings.maxMatchWordlength).onChange(async (value) => {
+				settings.maxMatchWordlength = value;
+				this.applySettingsUpdate();
+			})
+		);
 
 		new Setting(containerEl)
 			.setName('Add new suggester')

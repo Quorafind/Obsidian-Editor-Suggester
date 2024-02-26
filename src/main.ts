@@ -5,9 +5,9 @@ import {
 	EditorSuggest,
 	EditorSuggestContext,
 	EditorSuggestTriggerInfo,
-	FuzzyMatch,
+	FuzzyMatch, Modal,
 	Plugin,
-	prepareFuzzySearch
+	prepareFuzzySearch, setIcon
 } from 'obsidian';
 import { CustomSuggesterSettings, CustomSuggesterSettingTab, DEFAULT_SETTINGS } from "./settings";
 
@@ -66,6 +66,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 
 	hasBracketEnd = false;
 	currentSuggester: SuggesterInfo;
+	currentIndex = 0;
 
 	readonly suggesterType = 'custom-suggester';
 
@@ -141,7 +142,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 			if (match) {
 				const matchedText = match[1];
 				this.currentSuggester = suggester;
-
+				this.currentIndex = index;
 				// console.log(matchedText);
 
 				return {
@@ -165,18 +166,46 @@ export class CustomSuggester extends EditorSuggest<string> {
 		const lowerCaseInputStr = context.query.toLocaleLowerCase();
 		const data = this.currentSuggester.suggestion;
 
-		// console.log(data, lowerCaseInputStr);
-
 		if (data.includes(lowerCaseInputStr)) return [];
 
-		return this.fuzzySearchItemsOptimized(lowerCaseInputStr, data).map((match) => match.item);
+		if (context.query.length > this.plugin.settings.maxMatchWordlength) return [];
+
+		const results = this.fuzzySearchItemsOptimized(lowerCaseInputStr, data).map((match) => match.item);
+
+		const renewResults = this.plugin.settings.showAddNewButton ? [...results, '++add++' + (context.query.toLocaleLowerCase() || 'Add new')] : results;
+
+		return renewResults;
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {
+		el.toggleClass('custom-suggester-item', true);
+		if (value.startsWith('++add++')) {
+			const iconEl = el.createEl("span", {
+				cls: "custom-suggester-item-icon",
+			});
+			const textEl = el.createEl("span");
+			setIcon(iconEl, 'plus');
+			textEl.setText(value.replace('++add++', ''));
+			return;
+		}
 		el.setText(value);
 	}
 
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+		if (value.startsWith('++add++')) {
+			evt.preventDefault();
+			new NewSuggestItemModal(this.app, value.replace('++add++', ''), (newValue) => {
+				// const currentSuggester = this.currentSuggester;
+				this.currentSuggester.suggestion.push(newValue);
+				// this.plugin.settings.suggesters.splice(this.currentIndex, 1, {
+				// 	...this.currentSuggester,
+				// 	suggestion: [...this.currentSuggester.suggestion, newValue],
+				// });
+				this.plugin.saveSettings();
+			}).open();
+			return;
+		}
+
 		this.editor.replaceRange(
 			value + (this.hasBracketEnd ? '' : this.currentSuggester.trigger.after),
 			{line: this.cursor.line, ch: this.context?.start.ch || this.cursor.ch},
@@ -190,6 +219,32 @@ export class CustomSuggester extends EditorSuggest<string> {
 			ch: this.cursor.ch + value.length - (this.cursor.ch - (this.context?.start?.ch || this.cursor.ch)) + (this.hasBracketEnd ? 0 : this.currentSuggester.trigger.after.length),
 		});
 		this.close();
+	}
+}
+
+class NewSuggestItemModal extends Modal {
+
+	constructor(app: App, readonly defaultValue: string, readonly cb: (value: string) => void) {
+		super(app);
+	}
+
+	onOpen() {
+		this.modalEl.toggleClass('custom-suggester-add-new-modal', true);
+		this.setTitle('Add new suggestion');
+
+		const documentFragment = document.createDocumentFragment();
+		const inputEl = documentFragment.createEl('input');
+		inputEl.value = this.defaultValue === 'Add new' ? '' : this.defaultValue;
+		const buttonEl = documentFragment.createEl('button', {text: 'Add'});
+		buttonEl.addEventListener('click', () => {
+			this.cb(inputEl.value);
+			this.close();
+		});
+		this.setContent(documentFragment);
+	}
+
+	onClose() {
+		this.contentEl.empty();
 	}
 }
 

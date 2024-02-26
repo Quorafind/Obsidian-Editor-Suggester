@@ -195,6 +195,43 @@
 	justify-content: center;
 }
 
+.custom-suggester-add-new-modal {
+	width: 350px;
+}
+
+.custom-suggester-add-new-modal .modal-content {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-4-4);
+}
+
+.custom-suggester-add-new-modal input {
+	width: 100%;
+}
+
+.custom-suggester-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-2-2);
+
+	max-width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	--icon-size: var(--size-4-3);
+}
+
+.custom-suggeter-item .custom-suggester-item-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
 
 @media screen and (max-width: 768px) {
 	.custom-suggester-regex-intro {
