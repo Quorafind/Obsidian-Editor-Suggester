@@ -1,11 +1,14 @@
 import { App, debounce, ExtraButtonComponent, Modal, PluginSettingTab, Setting, ToggleComponent } from "obsidian";
 import CustomSuggesterPlugin, { SuggesterInfo } from "./main";
+import { FolderSuggest } from "./suggest/folderSuggest";
 
 export interface CustomSuggesterSettings {
 	suggesters: SuggesterInfo[];
 	showAddNewButton: boolean;
 	maxMatchWordlength: number;
 }
+
+const DEFAULT_FOLDER_SETTINGS = 'folder1/folder2';
 
 export const DEFAULT_SETTINGS: CustomSuggesterSettings = {
 	suggesters: [
@@ -16,7 +19,9 @@ export const DEFAULT_SETTINGS: CustomSuggesterSettings = {
 				before: '【',
 				after: '】',
 				matchRegex: "【([^】]*)$",
+				removeBefore: false,
 			},
+			type: 'text',
 			suggestion: [
 				"已完成，等待确认",
 				"已放弃",
@@ -120,7 +125,9 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 							before: '',
 							after: '',
 							matchRegex: '',
+							removeBefore: false,
 						},
+						type: 'text',
 						suggestion: [],
 					});
 					this.applySettingsUpdate();
@@ -170,9 +177,10 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 
 			const mainSettingsEl = topLevelSetting.settingEl.createEl('div', 'custom-suggester');
 
-			const brushNameEl = mainSettingsEl.createEl('div', 'custom-suggester-name');
-			brushNameEl.createEl('label', {text: 'Name'});
-			brushNameEl.createEl('input', {
+			// Suggester name
+			const suggesterNameEl = mainSettingsEl.createEl('div', 'custom-suggester-name');
+			suggesterNameEl.createEl('label', {text: 'Name'});
+			suggesterNameEl.createEl('input', {
 				cls: 'name-input',
 				type: 'text',
 				value: settings.suggesters[index].name,
@@ -184,9 +192,26 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 				this.debounceDisplay();
 			});
 
+			// Suggester prefix
 			const insertPrefixEl = mainSettingsEl.createEl('div', 'custom-suggester-prefix');
 			insertPrefixEl.createEl('label', {text: 'Prefix'});
-			insertPrefixEl.createEl('input', {
+			const inputGroupEl = insertPrefixEl.createEl('div', 'custom-suggester-prefix-input-group');
+			const toggleIconEl = inputGroupEl.createEl('div', 'custom-suggester-prefix-toggle');
+			const icon = new ExtraButtonComponent(toggleIconEl);
+			icon.extraSettingsEl.toggleClass('active', settings.suggesters[index].trigger.removeBefore);
+			icon.setTooltip('Remove before').setIcon('x-square').onClick(() => {
+				settings.suggesters[index] = {
+					...settings.suggesters[index],
+					trigger: {
+						...settings.suggesters[index].trigger,
+						removeBefore: !settings.suggesters[index].trigger.removeBefore
+					}
+				};
+				this.applySettingsUpdate();
+				icon.extraSettingsEl.toggleClass('active', settings.suggesters[index].trigger.removeBefore);
+				// this.debounceDisplay();
+			});
+			inputGroupEl.createEl('input', {
 				cls: 'prefix-input',
 				type: 'text',
 				value: suggester.trigger.before,
@@ -199,6 +224,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 				this.applySettingsUpdate();
 			});
 
+			// Suggester suffix
 			const insertSuffixEl = mainSettingsEl.createEl('div', 'custom-suggester-suffix');
 			insertSuffixEl.createEl('label', {text: 'Suffix'});
 			insertSuffixEl.createEl('input', {
@@ -214,9 +240,9 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 				this.applySettingsUpdate();
 			});
 
+			// Suggester regex
 			const regexEl = mainSettingsEl.createEl('div', 'custom-suggester-regex');
 			const regexInfoEl = regexEl.createEl('div', 'custom-suggester-regex-info');
-
 			regexInfoEl.createEl('label', {text: 'Regex'});
 			const introEl = regexInfoEl.createEl('span', {
 				cls: 'custom-suggester-regex-intro',
@@ -236,6 +262,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 				this.applySettingsUpdate();
 			});
 
+			// Suggester suggestion list and icons
 			const suggestionEl = mainSettingsEl.createEl('div', 'custom-suggester-suggestion');
 			suggestionEl.createEl('label', {text: 'Suggestion'});
 			const suggestionBtnGorupEl = suggestionEl.createEl('div', 'custom-suggester-suggestion-btn-group');
@@ -247,10 +274,41 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 
 			const suggestionInputBtn = suggestionBtnGorupEl.createEl('div', 'custom-suggester-suggestion-input');
 			new ExtraButtonComponent(suggestionInputBtn).setTooltip('Add suggestion').setIcon('settings-2').onClick(() => {
-				new InputModal(this.app, this.plugin, settings.suggesters[index], (value) => {
-					const suggestionList = value.split('\n').filter(Boolean);
-					// console.log(suggestionList);
-					settings.suggesters[index] = {...settings.suggesters[index], suggestion: suggestionList};
+				new InputModal(this.app, this.plugin, settings.suggesters[index], (value, type) => {
+					switch (type) {
+						case 'text':
+							settings.suggesters[index] = {
+								...settings.suggesters[index],
+								type: 'text',
+								suggestion: value.split('\n').filter(Boolean)
+							};
+							break;
+						case 'link':
+							settings.suggesters[index] = {
+								...settings.suggesters[index],
+								type: 'link',
+								suggestion: value
+							};
+							break;
+						case 'function':
+							settings.suggesters[index] = {
+								...settings.suggesters[index],
+								type: 'function',
+								suggestion: value
+							};
+							break;
+						default:
+							settings.suggesters[index] = {
+								...settings.suggesters[index],
+								type: 'text',
+								suggestion: value.split('\n').filter(Boolean)
+							};
+							break;
+					}
+
+
+					// const suggestionList = value.split('\n').filter(Boolean);
+					// settings.suggesters[index] = {...settings.suggesters[index], suggestion: suggestionList};
 					this.applySettingsUpdate();
 
 					this.debounceDisplay();
@@ -259,46 +317,139 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 		});
 	}
 
+	createInputEl(parentEl: HTMLElement, value: string, onChange: (value: string) => void) {
+
+	}
+
 	createSuggestionListEl(alreadyAddedSuggestionEl: HTMLDivElement, suggester: SuggesterInfo) {
 		const hoverListEl = alreadyAddedSuggestionEl.createEl('div', 'custom-suggester-suggestion-list hide');
-		suggester.suggestion.forEach((suggestion) => {
-			const suggestionEl = hoverListEl.createEl('div', 'custom-suggester-suggestion-item');
-			suggestionEl.createEl('span', {text: suggestion});
-		});
+		switch (suggester.type) {
+			case "text":
+				(suggester.suggestion as string[]).forEach((suggestion) => {
+					const suggestionEl = hoverListEl.createEl('div', 'custom-suggester-suggestion-item');
+					suggestionEl.createEl('span', {text: suggestion});
+				});
+				break;
+			case "link":
+				hoverListEl.createEl('div', 'custom-suggester-suggestion-item').createEl('span', {text: 'Link'});
+				break;
+			case "function":
+				hoverListEl.createEl('div', 'custom-suggester-suggestion-item').createEl('span', {text: 'Function'});
+				break;
+			default:
+				(suggester.suggestion as string[]).forEach((suggestion) => {
+					const suggestionEl = hoverListEl.createEl('div', 'custom-suggester-suggestion-item');
+					suggestionEl.createEl('span', {text: suggestion});
+				});
+				break;
+		}
 	}
 }
 
 class InputModal extends Modal {
 	plugin: CustomSuggesterPlugin;
+	type: 'link' | 'text' | 'function' = 'text';
 
-	constructor(app: App, plugin: CustomSuggesterPlugin, readonly suggestion: SuggesterInfo, readonly cb: (value: string) => void) {
+	value: string = '';
+
+	constructor(app: App, plugin: CustomSuggesterPlugin, readonly suggestion: SuggesterInfo, readonly cb: (value: string, type: 'link' | 'text' | 'function') => void) {
 		super(app);
 		this.plugin = plugin;
+		this.type = suggestion.type || 'text';
 	}
 
 	onOpen() {
 		super.onOpen();
 		this.setTitle('Add suggestion');
-
 		this.modalEl.toggleClass('custom-suggester-modal', true);
 
-		const documentFragment = document.createDocumentFragment();
-		const inputEl = documentFragment.createEl('textarea', {
+		this.display();
+	}
+
+
+	display() {
+		this.contentEl.empty();
+
+		const fragment = document.createDocumentFragment();
+		const typeSelectorEl = fragment.createEl('div', {
+			cls: 'custom-suggester-type-selector',
+		});
+		new Setting(typeSelectorEl).setName('Suggester type').addDropdown((dropdown) => {
+			// Options is record data type, so we need to cast it to string array
+			dropdown.addOption('text', 'Text').addOption('link', 'Link').addOption('function', 'Function');
+			dropdown.setValue(this.type).onChange((value: 'text' | 'link' | 'function') => {
+				this.type = value;
+				this.display();
+			});
+		});
+
+
+		switch (this.type) {
+			case "text":
+				this.createTextInput(fragment);
+				break;
+			case "link":
+				this.createLinkInput(fragment);
+				break;
+			case "function":
+				this.createFunctionInput(fragment);
+				break;
+			default:
+				this.createTextInput(fragment);
+				break;
+		}
+	}
+
+	createTextInput(fragment: DocumentFragment) {
+		const inputEl = fragment.createEl('textarea', {
 			cls: 'custom-suggester-suggestion-input',
 			type: 'text',
 		});
-		inputEl.value = this.suggestion.suggestion.join('\n');
-		const btnEl = documentFragment.createEl('div', {
+		inputEl.value = (this.suggestion.suggestion as string[]).join('\n');
+		inputEl && this.createBtn(fragment, inputEl, 'text');
+	}
+
+	createLinkInput(fragment: DocumentFragment) {
+		const pathEl = fragment.createEl('div', {
+			cls: 'custom-suggester-path-input',
+		});
+		let inputEl;
+		new Setting(pathEl).setName('Path').addText((text) => {
+			inputEl = text.inputEl;
+			new FolderSuggest(inputEl);
+			text
+				.setPlaceholder(DEFAULT_FOLDER_SETTINGS)
+				.setValue(this.suggestion.suggestion as string);
+		});
+
+		inputEl && this.createBtn(fragment, inputEl, 'link');
+
+	}
+
+
+	createFunctionInput(fragment: DocumentFragment) {
+		const inputEl = fragment.createEl('textarea', {
+			cls: 'custom-suggester-suggestion-input',
+			type: 'text',
+			placeholder: 'function body',
+		});
+		inputEl.value = this.suggestion.type === 'function' ? (this.suggestion.suggestion as string) : '';
+		inputEl && this.createBtn(fragment, inputEl, 'function');
+	}
+
+
+	createBtn(fragment: DocumentFragment, inputEl: HTMLInputElement | HTMLTextAreaElement, type: 'text' | 'link' | 'function') {
+		const btnEl = fragment.createEl('div', {
 			cls: 'custom-suggester-btn-group',
 		}).createEl('button', {
 			cls: 'custom-suggester-confirm-btn',
 			text: 'Confirm',
 		});
 		btnEl.onclick = () => {
-			this.cb(inputEl.value);
+			this.cb(inputEl.value, type);
 			this.close();
 		};
-		this.setContent(documentFragment);
+		this.setContent(fragment);
 	}
 
 	onClose() {

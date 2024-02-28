@@ -10,6 +10,8 @@ import {
 	prepareFuzzySearch, setIcon
 } from 'obsidian';
 import { CustomSuggesterSettings, CustomSuggesterSettingTab, DEFAULT_SETTINGS } from "./settings";
+import { getFilesInFolder } from "./utils";
+import * as obsidian from "obsidian";
 
 export interface SuggesterInfo {
 	name: string;
@@ -18,8 +20,10 @@ export interface SuggesterInfo {
 		before: string;
 		after: string;
 		matchRegex: string;
+		removeBefore: boolean;
 	},
-	suggestion: string[];
+	type: 'link' | 'text' | 'function';
+	suggestion: string[] | string | (() => string[]);
 }
 
 export default class CustomSuggesterPlugin extends Plugin {
@@ -70,10 +74,19 @@ export class CustomSuggester extends EditorSuggest<string> {
 
 	readonly suggesterType = 'custom-suggester';
 
+	public params: {
+		app: App;
+		obsidian: typeof obsidian;
+	};
+
 	constructor(app: App, plugin: CustomSuggesterPlugin) {
 		super(app);
 		this.plugin = plugin;
 		this.settings = plugin.settings;
+		this.params = {
+			app: this.app,
+			obsidian,
+		};
 	}
 
 	updateSettings(settings: CustomSuggesterSettings) {
@@ -99,6 +112,27 @@ export class CustomSuggester extends EditorSuggest<string> {
 			})
 			.sort((a, b) => (b?.score || 0) - (a?.score || 0))
 			.filter(Boolean) as FuzzyMatch<string>[];
+	}
+
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	public async runAndGetOutput(query: {
+		trigger: string;
+		query: string;
+	}, code: string): Promise<any> {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+		const AsyncFunction = Object.getPrototypeOf(
+			async function () {
+			}
+		).constructor;
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+		const userCode = new AsyncFunction(code);
+
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+		return await userCode.bind({
+			...this.params,
+			query,
+		}, this).call();
 	}
 
 
@@ -139,8 +173,10 @@ export class CustomSuggester extends EditorSuggest<string> {
 			const nextWhiteSpaceIndex = textAfterCursor.search(/^\s/);
 			const cursorOffset = nextWhiteSpaceIndex === -1 ? getNextBracketIndex(textAfterCursor, suggester.trigger.after || suggester.trigger.before) : nextWhiteSpaceIndex;
 
+
 			if (match) {
 				const matchedText = match[1];
+				const removeBefore = suggester.trigger.removeBefore ? suggester.trigger.before.length : 0;
 				this.currentSuggester = suggester;
 				this.currentIndex = index;
 				// console.log(matchedText);
@@ -148,7 +184,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 				return {
 					start: {
 						line: currentLineNum,
-						ch: cursor.ch - matchedText.length,
+						ch: cursor.ch - matchedText.length - removeBefore,
 					},
 					end: {
 						line: currentLineNum,
@@ -162,24 +198,46 @@ export class CustomSuggester extends EditorSuggest<string> {
 		return null;
 	}
 
-	getSuggestions(context: EditorSuggestContext): string[] {
+	async getSuggestions(context: EditorSuggestContext): Promise<string[]> {
 		const lowerCaseInputStr = context.query.toLocaleLowerCase();
-		const data = this.currentSuggester.suggestion;
+		let data: string[] = [];
+		switch (this.currentSuggester.type) {
+			case "text":
+				data = this.currentSuggester.suggestion as string[];
+				break;
+			case "link":
+				const folder = this.app.vault.getFolderByPath(this.currentSuggester.suggestion as string);
+				if (folder) {
+					const files = getFilesInFolder(folder);
+					data = files.map((file) => this.app.metadataCache.fileToLinktext(file, '') as string);
+				}
+				break;
+			case "function":
+				// data = (this.currentSuggester.suggestion as () => string[]).call(this);
+				// const a = new Function('context', this.currentSuggester.suggestion as string);
+				data = await this.runAndGetOutput({
+					start: this.currentSuggester.trigger.before,
+					query: context.query,
+				}, this.currentSuggester.suggestion as string) as string[] || [];
+				break;
+			default:
+				data = this.currentSuggester.suggestion as string[];
+				break;
+		}
+
 
 		if (data.includes(lowerCaseInputStr)) return [];
 
 		if (context.query.length > this.plugin.settings.maxMatchWordlength) return [];
-
 		const results = this.fuzzySearchItemsOptimized(lowerCaseInputStr, data).map((match) => match.item);
-
-		const renewResults = this.plugin.settings.showAddNewButton ? [...results, '++add++' + (context.query.toLocaleLowerCase() || 'Add new')] : results;
+		const renewResults = this.plugin.settings.showAddNewButton && this.currentSuggester.type === 'text' ? [...results, '++add++' + (context.query.toLocaleLowerCase() || 'Add new')] : results;
 
 		return renewResults;
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {
 		el.toggleClass('custom-suggester-item', true);
-		if (value.startsWith('++add++')) {
+		if (value.startsWith('++add++') && this.currentSuggester.type === 'text') {
 			const iconEl = el.createEl("span", {
 				cls: "custom-suggester-item-icon",
 			});
@@ -192,22 +250,26 @@ export class CustomSuggester extends EditorSuggest<string> {
 	}
 
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
-		if (value.startsWith('++add++')) {
+		if (value.startsWith('++add++') && this.currentSuggester.type === 'text') {
 			evt.preventDefault();
 			new NewSuggestItemModal(this.app, value.replace('++add++', ''), (newValue) => {
-				// const currentSuggester = this.currentSuggester;
-				this.currentSuggester.suggestion.push(newValue);
-				// this.plugin.settings.suggesters.splice(this.currentIndex, 1, {
-				// 	...this.currentSuggester,
-				// 	suggestion: [...this.currentSuggester.suggestion, newValue],
-				// });
+				(this.currentSuggester.suggestion as string[]).push(newValue);
 				this.plugin.saveSettings();
 			}).open();
 			return;
 		}
 
+		let target = value + (this.hasBracketEnd ? '' : this.currentSuggester.trigger.after);
+		if (this.currentSuggester.type === 'link') {
+			target = `[[${value}]]`;
+		}
+
+		const cursorOffset = this.currentSuggester.type === 'link' ? 4 : 0;
+		const startCursor = ((this.context?.start?.ch || this.cursor.ch) + cursorOffset);
+
+
 		this.editor.replaceRange(
-			value + (this.hasBracketEnd ? '' : this.currentSuggester.trigger.after),
+			target,
 			{line: this.cursor.line, ch: this.context?.start.ch || this.cursor.ch},
 			{
 				line: this.cursor.line,
@@ -216,7 +278,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 		);
 		this.editor.setCursor({
 			line: this.cursor.line,
-			ch: this.cursor.ch + value.length - (this.cursor.ch - (this.context?.start?.ch || this.cursor.ch)) + (this.hasBracketEnd ? 0 : this.currentSuggester.trigger.after.length),
+			ch: this.cursor.ch + value.length - (this.cursor.ch - startCursor) + (this.hasBracketEnd ? 0 : this.currentSuggester.trigger.after.length),
 		});
 		this.close();
 	}

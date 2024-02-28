@@ -13,3 +13,30 @@ You can modify the suggester by any word you want. You can also add a new word t
    a word.
 6. The suggester will be triggered when you type the trigger word and the regex matches the content.
 
+## Special
+
+- Link type suggestions will insert file link like `[[file]]`.
+- Function type suggestions will call the function you set in the settings.
+
+```javascript
+// Example
+// this contains query and also app itself:
+// this.params = {
+// 	app: app,
+// 	obsidian,
+//  query: {
+//    trigger: string;
+//    query: string;
+//  }
+// };
+if (this.query) {
+	const currentTime = moment().format('YYYY-MM-DD HH:mm:ss');
+	const nextHour = moment().add(1, 'hour').format('YYYY-MM-DD HH:mm:ss');
+	const nextThreeHours = moment().add(3, 'hour').format('YYYY-MM-DD HH:mm:ss');
+	const nextTwelveHours = moment().add(12, 'hour').format('YYYY-MM-DD HH:mm:ss');
+	const nextDay = moment().add(1, 'day').format('YYYY-MM-DD HH:mm:ss');
+	const nextWeek = moment().add(1, 'week').format('YYYY-MM-DD HH:mm:ss');
+	const nextMonth = moment().add(1, 'month').format('YYYY-MM-DD HH:mm:ss');
+	return [currentTime, nextHour, nextThreeHours, nextTwelveHours, nextDay, nextWeek, nextMonth];
+}
+```
