@@ -216,7 +216,7 @@ export class CustomSuggester extends EditorSuggest<string> {
 				// data = (this.currentSuggester.suggestion as () => string[]).call(this);
 				// const a = new Function('context', this.currentSuggester.suggestion as string);
 				data = await this.runAndGetOutput({
-					start: this.currentSuggester.trigger.before,
+					trigger: this.currentSuggester.trigger.before,
 					query: context.query,
 				}, this.currentSuggester.suggestion as string) as string[] || [];
 				break;

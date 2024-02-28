@@ -19,7 +19,7 @@ export class FolderSuggest extends TextInputSuggest<TFolder> {
 				}
 				return null;
 			})
-			.sort((a, b) => b?.score - a?.score)
+			.sort((a, b) => (b?.score || 0) - (a?.score || 0))
 			.filter(Boolean) as FuzzyMatch<TFolder>[];
 	}
 
