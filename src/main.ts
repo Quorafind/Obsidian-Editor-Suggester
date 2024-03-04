@@ -184,7 +184,6 @@ export class CustomSuggester extends EditorSuggest<string> {
 				// console.log(matchedText);
 
 				if ((cursor.ch - matchedText.length - removeBefore) === 0) {
-					console.log('line start', cursor.ch - matchedText.length - removeBefore);
 					this.isLineStart = true;
 				}
 
