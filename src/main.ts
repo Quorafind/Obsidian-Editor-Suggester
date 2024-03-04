@@ -72,6 +72,8 @@ export class CustomSuggester extends EditorSuggest<string> {
 	currentSuggester: SuggesterInfo;
 	currentIndex = 0;
 
+	private isLineStart = false;
+
 	readonly suggesterType = 'custom-suggester';
 
 	public params: {
@@ -181,6 +183,11 @@ export class CustomSuggester extends EditorSuggest<string> {
 				this.currentIndex = index;
 				// console.log(matchedText);
 
+				if ((cursor.ch - matchedText.length - removeBefore) === 0) {
+					console.log('line start', cursor.ch - matchedText.length - removeBefore);
+					this.isLineStart = true;
+				}
+
 				return {
 					start: {
 						line: currentLineNum,
@@ -265,21 +272,26 @@ export class CustomSuggester extends EditorSuggest<string> {
 		}
 
 		const cursorOffset = this.currentSuggester.type === 'link' ? 4 : 0;
-		const startCursor = ((this.context?.start?.ch || this.cursor.ch) + cursorOffset);
-
+		const startCursor = (this.isLineStart && this.currentSuggester.trigger.removeBefore ? 0 : (this.context?.start?.ch || this.cursor.ch)) + cursorOffset;
 
 		this.editor.replaceRange(
 			target,
-			{line: this.cursor.line, ch: this.context?.start.ch || this.cursor.ch},
+			{
+				line: this.cursor.line,
+				ch: this.isLineStart && this.currentSuggester.trigger.removeBefore ? 0 : (this.context?.start.ch || this.cursor.ch)
+			},
 			{
 				line: this.cursor.line,
 				ch: this.context?.end.ch || this.cursor.ch,
 			},
 		);
+
 		this.editor.setCursor({
 			line: this.cursor.line,
 			ch: this.cursor.ch + value.length - (this.cursor.ch - startCursor) + (this.hasBracketEnd ? 0 : this.currentSuggester.trigger.after.length),
 		});
+		this.isLineStart = false;
+
 		this.close();
 	}
 }
