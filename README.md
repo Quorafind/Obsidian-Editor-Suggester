@@ -2,6 +2,10 @@
 
 You can modify the suggester by any word you want. You can also add a new word to the suggester.
 
+| Example 1                          | Example 2                          |
+|------------------------------------|------------------------------------|
+| ![Example 1](./media/example1.gif) | ![Example 2](./media/example2.gif) |
+
 ## How to use
 
 1. Open the settings of the plugin
