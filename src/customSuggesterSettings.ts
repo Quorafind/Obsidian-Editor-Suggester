@@ -1,9 +1,20 @@
-import { App, debounce, ExtraButtonComponent, Modal, PluginSettingTab, Setting, ToggleComponent } from "obsidian";
-import CustomSuggesterPlugin, { SuggesterInfo } from "./main";
+import {
+	App,
+	debounce,
+	ExtraButtonComponent,
+	Modal,
+	Notice,
+	PluginSettingTab,
+	Setting,
+	ToggleComponent
+} from "obsidian";
+import CustomSuggesterPlugin from "./customSuggesterIndex";
 import { FolderSuggest } from "./suggest/folderSuggest";
+import { SuggesterInfo } from "./CustomSuggester";
 
 export interface CustomSuggesterSettings {
 	suggesters: SuggesterInfo[];
+	showInstructions: boolean;
 	showAddNewButton: boolean;
 	maxMatchWordlength: number;
 }
@@ -29,6 +40,7 @@ export const DEFAULT_SETTINGS: CustomSuggesterSettings = {
 			],
 		},
 	],
+	showInstructions: true,
 	showAddNewButton: true,
 	maxMatchWordlength: 10,
 };
@@ -46,7 +58,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 			// await this.display();
 		},
-		400,
+		200,
 		true,
 	);
 
@@ -54,7 +66,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 		async () => {
 			await this.display();
 		},
-		1000,
+		400,
 		true,
 	);
 
@@ -90,7 +102,19 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 		new ExtraButtonComponent(exportEl).setTooltip('Export settings').setIcon('file-up').onClick(async () => {
 			const settings = JSON.stringify(this.plugin.settings, null, 2);
 			await navigator.clipboard.writeText(settings);
+			new Notice('Settings copied to clipboard');
 		});
+
+		new Setting(containerEl)
+			.setName('Show instructions')
+			.setDesc('Show instructions in the suggestion list')
+			.addToggle((toggle) => toggle
+				.setValue(settings.showInstructions)
+				.onChange(async (value) => {
+					settings.showInstructions = value;
+					this.applySettingsUpdate();
+					// this.debounceDisplay();
+				}));
 
 		new Setting(containerEl)
 			.setName('Show add new button')
@@ -100,9 +124,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					settings.showAddNewButton = value;
 					this.applySettingsUpdate();
-					setTimeout(() => {
-						this.display();
-					}, 500);
+					this.debounceDisplay();
 				}));
 
 		settings.showAddNewButton && new Setting(containerEl).setName('Max match word length').setDesc('Max match word length').addSlider(
@@ -132,9 +154,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 					});
 					this.applySettingsUpdate();
 
-					setTimeout(() => {
-						this.display();
-					}, 500);
+					this.debounceDisplay();
 				}));
 
 		this.displayMacroSettings();
@@ -161,9 +181,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 					settings.suggesters.splice(index, 1);
 					this.applySettingsUpdate();
 
-					setTimeout(() => {
-						this.display();
-					}, 500);
+					this.debounceDisplay();
 				}
 			);
 

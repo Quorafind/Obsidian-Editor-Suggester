@@ -1,3 +1,4 @@
+import * as obsidian from "obsidian";
 import {
 	App,
 	Editor,
@@ -5,13 +6,14 @@ import {
 	EditorSuggest,
 	EditorSuggestContext,
 	EditorSuggestTriggerInfo,
-	FuzzyMatch, Modal,
-	Plugin,
-	prepareFuzzySearch, setIcon
-} from 'obsidian';
-import { CustomSuggesterSettings, CustomSuggesterSettingTab, DEFAULT_SETTINGS } from "./settings";
+	FuzzyMatch,
+	Modal,
+	prepareFuzzySearch,
+	setIcon
+} from "obsidian";
+import { CustomSuggesterSettings } from "./customSuggesterSettings";
 import { getFilesInFolder } from "./utils";
-import * as obsidian from "obsidian";
+import CustomSuggesterPlugin from "./customSuggesterIndex";
 
 export interface SuggesterInfo {
 	name: string;
@@ -26,42 +28,6 @@ export interface SuggesterInfo {
 	suggestion: string[] | string | (() => string[]);
 }
 
-export default class CustomSuggesterPlugin extends Plugin {
-	private settingTab: CustomSuggesterSettingTab;
-	settings: CustomSuggesterSettings;
-
-	suggester: CustomSuggester;
-
-	async onload() {
-		await this.loadSettings();
-
-		this.settingTab = new CustomSuggesterSettingTab(this.app, this);
-		this.addSettingTab(this.settingTab);
-
-		this.suggester = new CustomSuggester(this.app, this);
-		this.registerEditorSuggest(
-			this.suggester
-		);
-
-	}
-
-	onunload() {
-
-	}
-
-	public async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-		this.suggester.updateSettings(this.settings);
-	}
-
-}
-
-
 export class CustomSuggester extends EditorSuggest<string> {
 	editor: Editor;
 	cursor: EditorPosition;
@@ -72,9 +38,11 @@ export class CustomSuggester extends EditorSuggest<string> {
 	currentSuggester: SuggesterInfo;
 	currentIndex = 0;
 
-	private isLineStart = false;
 
+	private isLineStart = false;
 	readonly suggesterType = 'custom-suggester';
+
+	private currentSuggestions: string[] = [];
 
 	public params: {
 		app: App;
@@ -89,6 +57,22 @@ export class CustomSuggester extends EditorSuggest<string> {
 			app: this.app,
 			obsidian,
 		};
+
+		for (let i = 0; i < 10; i++) {
+			this.scope.register(['Mod'], (i === 9 ? 0 : (i + 1)).toString(), () => {
+				if (!this.currentSuggestions[i]) return;
+				this.selectSuggestion(this.currentSuggestions[i], new MouseEvent('click'));
+				this.close();
+			});
+		}
+
+		this.plugin.settings.showInstructions && this.setInstructions([
+			{
+				command: '⌘+1~0',
+				purpose: 'Select suggestion',
+			}
+		]);
+
 	}
 
 	updateSettings(settings: CustomSuggesterSettings) {
@@ -238,6 +222,9 @@ export class CustomSuggester extends EditorSuggest<string> {
 		const results = this.fuzzySearchItemsOptimized(lowerCaseInputStr, data).map((match) => match.item);
 		const renewResults = this.plugin.settings.showAddNewButton && this.currentSuggester.type === 'text' ? [...results, '++add++' + (context.query.toLocaleLowerCase() || 'Add new')] : results;
 
+		// this.suggestions = renewResults;
+		this.currentSuggestions = renewResults;
+
 		return renewResults;
 	}
 
@@ -256,6 +243,8 @@ export class CustomSuggester extends EditorSuggest<string> {
 	}
 
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+		console.log(this, this.context);
+
 		if (value.startsWith('++add++') && this.currentSuggester.type === 'text') {
 			evt.preventDefault();
 			new NewSuggestItemModal(this.app, value.replace('++add++', ''), (newValue) => {
@@ -320,4 +309,3 @@ class NewSuggestItemModal extends Modal {
 		this.contentEl.empty();
 	}
 }
-
