@@ -121,9 +121,12 @@ export class CustomSuggester extends EditorSuggest<string> {
 		}, this).call();
 	}
 
+	private containsPunctuation(text: string): boolean {
+		const punctuationRegex = /[，；。？！【】（）《》<>“”‘’'"\s.,;?!\[\]\(\)<>]/;
+		return punctuationRegex.test(text);
+	}
 
 	onTrigger(cursor: EditorPosition, editor: Editor): EditorSuggestTriggerInfo | null {
-
 		this.cursor = cursor;
 		this.editor = editor;
 		const currentLineNum = cursor.line;
@@ -132,7 +135,6 @@ export class CustomSuggester extends EditorSuggest<string> {
 		const textAfterCursor = currentLineText.slice(cursor.ch);
 
 		const getBracketIndex = (text: string, target: string) => {
-
 			const lastDoubleBracketIndex = text.lastIndexOf(target);
 			return lastDoubleBracketIndex === -1 ? 0 : !target ? 0 : lastDoubleBracketIndex;
 		};
@@ -148,24 +150,31 @@ export class CustomSuggester extends EditorSuggest<string> {
 		};
 
 		for (const suggester of this.settings.suggesters.filter((s) => s.enable || !s.trigger.before)) {
-			const index = getBracketIndex(textUntilCursor, suggester.trigger.after || suggester.trigger.before);
-			// console.log(index, trigger.after);
-			const targetText = textUntilCursor.slice(index);
-			// console.log(trigger.matchRegex, targetText);
-			const match = targetText.match(new RegExp(suggester.trigger.matchRegex));
+			const targetWord = suggester.trigger.before;
+			const index = getBracketIndex(textUntilCursor, targetWord);
 
-			// console.log(targetText, match, suggester.trigger.matchRegex);
+			if (index === 0 && textUntilCursor === '') continue;
+			const targetText = textUntilCursor.slice(index);
+			const afterTargetWord = textUntilCursor.slice(index + targetWord.length);
+
+			// Check if the sliced text contains punctuation
+			if (this.containsPunctuation(targetText) && !(targetText.startsWith(targetWord))) {
+				continue;
+			}
 
 			const nextWhiteSpaceIndex = textAfterCursor.search(/^\s/);
-			const cursorOffset = nextWhiteSpaceIndex === -1 ? getNextBracketIndex(textAfterCursor, suggester.trigger.after || suggester.trigger.before) : nextWhiteSpaceIndex;
+			const cursorOffset = nextWhiteSpaceIndex === -1 ? getNextBracketIndex(textAfterCursor, targetWord) : nextWhiteSpaceIndex;
 
 
-			if (match) {
-				const matchedText = match[1];
+			if (targetText) {
+				const matchedText = targetText;
+				console.log(targetText, targetWord, afterTargetWord);
+
+
+				if (!matchedText) return null;
 				const removeBefore = suggester.trigger.removeBefore ? suggester.trigger.before.length : 0;
 				this.currentSuggester = suggester;
 				this.currentIndex = index;
-				// console.log(matchedText);
 
 				if ((cursor.ch - matchedText.length - removeBefore) === 0) {
 					this.isLineStart = true;
@@ -174,13 +183,13 @@ export class CustomSuggester extends EditorSuggest<string> {
 				return {
 					start: {
 						line: currentLineNum,
-						ch: cursor.ch - matchedText.length - removeBefore,
+						ch: cursor.ch - (afterTargetWord || '').length - removeBefore,
 					},
 					end: {
 						line: currentLineNum,
 						ch: cursor.ch + cursorOffset,
 					},
-					query: matchedText,
+					query: afterTargetWord || '',
 				};
 			}
 		}
@@ -190,6 +199,8 @@ export class CustomSuggester extends EditorSuggest<string> {
 
 	async getSuggestions(context: EditorSuggestContext): Promise<string[]> {
 		const lowerCaseInputStr = context.query.toLocaleLowerCase();
+
+		console.log(context);
 		let data: string[] = [];
 		switch (this.currentSuggester.type) {
 			case "text":
@@ -219,11 +230,15 @@ export class CustomSuggester extends EditorSuggest<string> {
 		if (data.includes(lowerCaseInputStr)) return [];
 
 		if (context.query.length > this.plugin.settings.maxMatchWordlength) return [];
+		if (context.query === this.currentSuggester.trigger.before) return [...data];
+
 		const results = this.fuzzySearchItemsOptimized(lowerCaseInputStr, data).map((match) => match.item);
 		const renewResults = this.plugin.settings.showAddNewButton && this.currentSuggester.type === 'text' ? [...results, '++add++' + (context.query.toLocaleLowerCase() || 'Add new')] : results;
 
 		// this.suggestions = renewResults;
 		this.currentSuggestions = renewResults;
+
+		console.log(this.currentSuggestions);
 
 		return renewResults;
 	}

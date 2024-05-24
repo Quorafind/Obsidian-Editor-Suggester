@@ -174,7 +174,7 @@
 }
 
 .custom-suggester-modal {
-	width: 350px;
+	width: 90%;
 }
 
 .custom-suggester-modal .modal-content .custom-suggester-suggestion-input:focus {
@@ -272,4 +272,12 @@
 		display: none;
 	}
 
+}
+
+.function-inputer {
+	height: 100%;
+}
+
+.custom-suggester-suggestion-input .cm-editor {
+	height: 100%;
 }

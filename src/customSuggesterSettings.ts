@@ -1,16 +1,41 @@
 import {
 	App,
 	debounce,
-	ExtraButtonComponent,
+	ExtraButtonComponent, Menu,
 	Modal,
 	Notice,
 	PluginSettingTab,
-	Setting,
+	Setting, setTooltip, TextAreaComponent,
 	ToggleComponent
 } from "obsidian";
 import CustomSuggesterPlugin from "./customSuggesterIndex";
 import { FolderSuggest } from "./suggest/folderSuggest";
 import { SuggesterInfo } from "./CustomSuggester";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { javascript } from "@codemirror/lang-javascript";
+import {
+	bracketMatching,
+	defaultHighlightStyle,
+	foldGutter,
+	foldKeymap,
+	indentOnInput,
+	syntaxHighlighting,
+} from "@codemirror/language";
+import { EditorState, Extension } from "@codemirror/state";
+import {
+	drawSelection,
+	dropCursor,
+	EditorView, highlightActiveLine, highlightActiveLineGutter,
+	highlightSpecialChars,
+	keymap,
+	lineNumbers,
+	rectangularSelection,
+} from "@codemirror/view";
+
+import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { lintKeymap } from "@codemirror/lint";
+import { basicSetup } from "codemirror";
 
 export interface CustomSuggesterSettings {
 	suggesters: SuggesterInfo[];
@@ -20,6 +45,38 @@ export interface CustomSuggesterSettings {
 }
 
 const DEFAULT_FOLDER_SETTINGS = 'folder1/folder2';
+
+export const customSetup: Extension[] = [
+	basicSetup,
+	lineNumbers(),
+	highlightActiveLineGutter(),
+	highlightSpecialChars(),
+	history(),
+	javascript(),
+	foldGutter(),
+	drawSelection(),
+	dropCursor(),
+	EditorState.allowMultipleSelections.of(true),
+	indentOnInput(),
+	syntaxHighlighting(defaultHighlightStyle, {fallback: true}),
+	EditorView.lineWrapping,
+	bracketMatching(),
+	closeBrackets(),
+	autocompletion(),
+	rectangularSelection(),
+	highlightActiveLine(),
+	highlightSelectionMatches(),
+	keymap.of([
+		...closeBracketsKeymap,
+		...defaultKeymap,
+		...searchKeymap,
+		...historyKeymap,
+		indentWithTab,
+		...foldKeymap,
+		...completionKeymap,
+		...lintKeymap,
+	]),
+].filter(ext => ext);
 
 export const DEFAULT_SETTINGS: CustomSuggesterSettings = {
 	suggesters: [
@@ -134,27 +191,64 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 			})
 		);
 
-		new Setting(containerEl)
+		const addNewSuggester = new Setting(containerEl)
 			.setName('Add new suggester')
 			.setDesc('Create a new custom suggester')
 			.addButton((button) => button
 				.setButtonText('+')
 				.onClick(async () => {
-					settings.suggesters.push({
-						name: `Custom suggester ${settings.suggesters.length + 1}`,
-						enable: false,
-						trigger: {
-							before: '',
-							after: '',
-							matchRegex: '',
-							removeBefore: false,
-						},
-						type: 'text',
-						suggestion: [],
-					});
-					this.applySettingsUpdate();
+					const menu = new Menu();
+					const types: ('text' | 'link' | 'function')[] = ['text', 'link', 'function'];
 
-					this.debounceDisplay();
+					for (const type of types) {
+						menu.addItem((item) => {
+							item.setTitle(type).setIcon({
+								'text': 'pencil',
+								'link': 'link',
+								'function': 'code',
+							}[type]).onClick(() => {
+								settings.suggesters.push({
+									name: `Custom suggester ${settings.suggesters.length + 1}`,
+									enable: false,
+									trigger: {
+										before: '',
+										after: '',
+										matchRegex: '',
+										removeBefore: false,
+									},
+									type: type,
+									suggestion: [],
+								});
+								this.applySettingsUpdate();
+
+								this.debounceDisplay();
+							});
+						});
+					}
+
+
+					const rect = button.buttonEl.getBoundingClientRect();
+					menu.showAtPosition({
+						x: rect.left,
+						y: rect.bottom
+					});
+
+
+					// settings.suggesters.push({
+					// 	name: `Custom suggester ${settings.suggesters.length + 1}`,
+					// 	enable: false,
+					// 	trigger: {
+					// 		before: '',
+					// 		after: '',
+					// 		matchRegex: '',
+					// 		removeBefore: false,
+					// 	},
+					// 	type: 'text',
+					// 	suggestion: [],
+					// });
+					// this.applySettingsUpdate();
+					//
+					// this.debounceDisplay();
 				}));
 
 		this.displayMacroSettings();
@@ -175,6 +269,31 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 				cls: "custom-suggester-setting-name",
 				text: suggester.name || `Custom suggester #${index}`
 			});
+			nameEl.contentEditable = 'true';
+			nameEl.onclick = (e: MouseEvent) => {
+				const keyDownEvent = (e: KeyboardEvent) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						nameEl.contentEditable = 'false';
+						nameEl.blur();
+					}
+				};
+
+				const blurEvent = () => {
+					settings.suggesters[index] = {...settings.suggesters[index], name: nameEl.innerText};
+					this.applySettingsUpdate();
+
+					nameEl.removeEventListener('keydown', keyDownEvent);
+					nameEl.removeEventListener('blur', blurEvent);
+				};
+
+				nameEl.addEventListener('keydown', keyDownEvent);
+				nameEl.addEventListener('blur', blurEvent);
+
+				// Capture the current selection range
+			};
+
+
 			const deleteButtonEl = nameComponentEl.createEl('span');
 			new ExtraButtonComponent(deleteButtonEl).setTooltip('Delete suggester').setIcon('trash').onClick(
 				() => {
@@ -196,19 +315,19 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 			const mainSettingsEl = topLevelSetting.settingEl.createEl('div', 'custom-suggester');
 
 			// Suggester name
-			const suggesterNameEl = mainSettingsEl.createEl('div', 'custom-suggester-name');
-			suggesterNameEl.createEl('label', {text: 'Name'});
-			suggesterNameEl.createEl('input', {
-				cls: 'name-input',
-				type: 'text',
-				value: settings.suggesters[index].name,
-			}).on('change', '.name-input', async (evt: Event) => {
-				const target = evt.target as HTMLInputElement;
-				settings.suggesters[index] = {...settings.suggesters[index], name: target.value};
-				this.applySettingsUpdate();
-
-				this.debounceDisplay();
-			});
+			// const suggesterNameEl = mainSettingsEl.createEl('div', 'custom-suggester-name');
+			// suggesterNameEl.createEl('label', {text: 'Name'});
+			// suggesterNameEl.createEl('input', {
+			// 	cls: 'name-input',
+			// 	type: 'text',
+			// 	value: settings.suggesters[index].name,
+			// }).on('change', '.name-input', async (evt: Event) => {
+			// 	const target = evt.target as HTMLInputElement;
+			// 	settings.suggesters[index] = {...settings.suggesters[index], name: target.value};
+			// 	this.applySettingsUpdate();
+			//
+			// 	this.debounceDisplay();
+			// });
 
 			// Suggester prefix
 			const insertPrefixEl = mainSettingsEl.createEl('div', 'custom-suggester-prefix');
@@ -259,26 +378,26 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 			});
 
 			// Suggester regex
-			const regexEl = mainSettingsEl.createEl('div', 'custom-suggester-regex');
-			const regexInfoEl = regexEl.createEl('div', 'custom-suggester-regex-info');
-			regexInfoEl.createEl('label', {text: 'Regex'});
-			const introEl = regexInfoEl.createEl('span', {
-				cls: 'custom-suggester-regex-intro',
-			});
-			new ExtraButtonComponent(introEl).setTooltip('Regex to match the content from last prefix to cursor position.').setIcon('info');
-
-			regexEl.createEl('input', {
-				cls: 'regex-input',
-				type: 'text',
-				value: suggester.trigger.matchRegex,
-			}).on('change', '.regex-input', async (evt: Event) => {
-				const target = evt.target as HTMLInputElement;
-				settings.suggesters[index] = {
-					...settings.suggesters[index],
-					trigger: {...settings.suggesters[index].trigger, matchRegex: target.value}
-				};
-				this.applySettingsUpdate();
-			});
+			// const regexEl = mainSettingsEl.createEl('div', 'custom-suggester-regex');
+			// const regexInfoEl = regexEl.createEl('div', 'custom-suggester-regex-info');
+			// regexInfoEl.createEl('label', {text: 'Regex'});
+			// const introEl = regexInfoEl.createEl('span', {
+			// 	cls: 'custom-suggester-regex-intro',
+			// });
+			// new ExtraButtonComponent(introEl).setTooltip('Regex to match the content from last prefix to cursor position.').setIcon('info');
+			//
+			// regexEl.createEl('input', {
+			// 	cls: 'regex-input',
+			// 	type: 'text',
+			// 	value: suggester.trigger.matchRegex,
+			// }).on('change', '.regex-input', async (evt: Event) => {
+			// 	const target = evt.target as HTMLInputElement;
+			// 	settings.suggesters[index] = {
+			// 		...settings.suggesters[index],
+			// 		trigger: {...settings.suggesters[index].trigger, matchRegex: target.value}
+			// 	};
+			// 	this.applySettingsUpdate();
+			// });
 
 			// Suggester suggestion list and icons
 			const suggestionEl = mainSettingsEl.createEl('div', 'custom-suggester-suggestion');
@@ -287,8 +406,15 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 
 			const alreadyAddedSuggestionEl = suggestionBtnGorupEl.createEl('div', 'custom-suggester-suggestion-list-group');
 			const hoverBtnEl = alreadyAddedSuggestionEl.createEl('div', 'custom-suggester-suggestion-btn');
-			new ExtraButtonComponent(hoverBtnEl).setIcon('list');
-			suggester.suggestion.length > 0 && this.createSuggestionListEl(alreadyAddedSuggestionEl, suggester);
+			new ExtraButtonComponent(hoverBtnEl).setIcon('list').onClick(() => {
+				const menu = this.createMenu(suggester);
+				const rect = hoverBtnEl.getBoundingClientRect();
+				menu.showAtPosition({
+					x: rect.left,
+					y: rect.bottom
+				});
+			});
+
 
 			const suggestionInputBtn = suggestionBtnGorupEl.createEl('div', 'custom-suggester-suggestion-input');
 			new ExtraButtonComponent(suggestionInputBtn).setTooltip('Add suggestion').setIcon('settings-2').onClick(() => {
@@ -339,28 +465,42 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 
 	}
 
-	createSuggestionListEl(alreadyAddedSuggestionEl: HTMLDivElement, suggester: SuggesterInfo) {
-		const hoverListEl = alreadyAddedSuggestionEl.createEl('div', 'custom-suggester-suggestion-list hide');
+	createMenu(suggester: SuggesterInfo) {
+		const menu = new Menu();
+
+		// const hoverListEl = alreadyAddedSuggestionEl.createEl('div', 'custom-suggester-suggestion-list hide');
 		switch (suggester.type) {
 			case "text":
-				(suggester.suggestion as string[]).forEach((suggestion) => {
-					const suggestionEl = hoverListEl.createEl('div', 'custom-suggester-suggestion-item');
-					suggestionEl.createEl('span', {text: suggestion});
-				});
+				(suggester.suggestion as string[]).forEach(
+					(suggestion) => {
+						menu.addItem((item) => {
+							item.setTitle(suggestion).setIsLabel(true);
+						});
+					}
+				);
 				break;
 			case "link":
-				hoverListEl.createEl('div', 'custom-suggester-suggestion-item').createEl('span', {text: 'Link'});
-				break;
-			case "function":
-				hoverListEl.createEl('div', 'custom-suggester-suggestion-item').createEl('span', {text: 'Function'});
-				break;
-			default:
-				(suggester.suggestion as string[]).forEach((suggestion) => {
-					const suggestionEl = hoverListEl.createEl('div', 'custom-suggester-suggestion-item');
-					suggestionEl.createEl('span', {text: suggestion});
+				menu.addItem((item) => {
+					item.setTitle('Link').setIsLabel(true);
 				});
 				break;
+			case "function":
+				menu.addItem((item) => {
+					item.setTitle('Function').setIsLabel(true);
+				});
+				break;
+			default:
+				(suggester.suggestion as string[]).forEach(
+					(suggestion) => {
+						menu.addItem((item) => {
+							item.setTitle(suggestion).setIsLabel(true);
+						});
+					}
+				);
+				break;
 		}
+
+		return menu;
 	}
 }
 
@@ -369,6 +509,7 @@ class InputModal extends Modal {
 	type: 'link' | 'text' | 'function' = 'text';
 
 	value: string = '';
+	editor: EditorView;
 
 	constructor(app: App, plugin: CustomSuggesterPlugin, readonly suggestion: SuggesterInfo, readonly cb: (value: string, type: 'link' | 'text' | 'function') => void) {
 		super(app);
@@ -392,14 +533,14 @@ class InputModal extends Modal {
 		const typeSelectorEl = fragment.createEl('div', {
 			cls: 'custom-suggester-type-selector',
 		});
-		new Setting(typeSelectorEl).setName('Suggester type').addDropdown((dropdown) => {
-			// Options is record data type, so we need to cast it to string array
-			dropdown.addOption('text', 'Text').addOption('link', 'Link').addOption('function', 'Function');
-			dropdown.setValue(this.type).onChange((value: 'text' | 'link' | 'function') => {
-				this.type = value;
-				this.display();
-			});
-		});
+		// new Setting(typeSelectorEl).setName('Suggester type').addDropdown((dropdown) => {
+		// 	// Options is record data type, so we need to cast it to string array
+		// 	dropdown.addOption('text', 'Text').addOption('link', 'Link').addOption('function', 'Function');
+		// 	dropdown.setValue(this.type).onChange((value: 'text' | 'link' | 'function') => {
+		// 		this.type = value;
+		// 		this.display();
+		// 	});
+		// });
 
 
 		switch (this.type) {
@@ -446,17 +587,20 @@ class InputModal extends Modal {
 
 
 	createFunctionInput(fragment: DocumentFragment) {
-		const inputEl = fragment.createEl('textarea', {
+		const inputEl = fragment.createEl('div', {
 			cls: 'custom-suggester-suggestion-input',
 			type: 'text',
 			placeholder: 'function body',
 		});
-		inputEl.value = this.suggestion.type === 'function' ? (this.suggestion.suggestion as string) : '';
-		inputEl && this.createBtn(fragment, inputEl, 'function');
+		const customCSSEl = new TextAreaComponent(inputEl).setValue(this.suggestion.type === 'function' ? (this.suggestion.suggestion as string) : '');
+		this.editor = editorFromTextArea(customCSSEl.inputEl, customSetup);
+		this.editor.contentDOM.toggleClass('function-inputer', true);
+		// inputEl.value = this.suggestion.type === 'function' ? (this.suggestion.suggestion as string) : '';
+		inputEl && this.createBtn(fragment, this.editor, 'function');
 	}
 
 
-	createBtn(fragment: DocumentFragment, inputEl: HTMLInputElement | HTMLTextAreaElement, type: 'text' | 'link' | 'function') {
+	createBtn(fragment: DocumentFragment, inputEl: HTMLInputElement | HTMLTextAreaElement | EditorView, type: 'text' | 'link' | 'function') {
 		const btnEl = fragment.createEl('div', {
 			cls: 'custom-suggester-btn-group',
 		}).createEl('button', {
@@ -464,7 +608,11 @@ class InputModal extends Modal {
 			text: 'Confirm',
 		});
 		btnEl.onclick = () => {
-			this.cb(inputEl.value, type);
+			if (inputEl instanceof EditorView) {
+				this.cb(inputEl.state.doc.toString(), type);
+			} else {
+				this.cb(inputEl.value, type);
+			}
 			this.close();
 		};
 		this.setContent(fragment);
@@ -472,6 +620,7 @@ class InputModal extends Modal {
 
 	onClose() {
 		super.onClose();
+		this.editor && this.editor.destroy();
 	}
 }
 
@@ -520,4 +669,18 @@ class ImportModal extends Modal {
 	onClose() {
 		super.onClose();
 	}
+}
+
+function editorFromTextArea(textarea: HTMLTextAreaElement, extensions: Extension) {
+	let view = new EditorView({
+		state: EditorState.create({doc: textarea.value, extensions}),
+	});
+
+	textarea.parentNode!.insertBefore(view.dom, textarea);
+	textarea.style.display = "none";
+	if (textarea.form)
+		textarea.form.addEventListener("submit", () => {
+			textarea.value = view.state.doc.toString();
+		});
+	return view;
 }
