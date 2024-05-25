@@ -222,6 +222,10 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 								this.applySettingsUpdate();
 
 								this.debounceDisplay();
+								// Scroll to the bottom of the settings container to view the newly added suggester
+								setTimeout(() => {
+									this.containerEl.scrollTop = this.containerEl.scrollHeight;
+								}, 10);
 							});
 						});
 					}
