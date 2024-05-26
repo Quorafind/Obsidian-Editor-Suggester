@@ -1,7 +1,7 @@
 {
 	"id": "custom-editor-suggester",
 	"name": "Custom Editor Suggester",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"minAppVersion": "1.4.0",
 	"description": "Custom auto complete for Obsidian.",
 	"author": "Boninall",
