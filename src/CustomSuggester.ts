@@ -28,7 +28,10 @@ export interface SuggesterInfo {
 	suggestion: string[] | string | (() => string[]);
 }
 
-export class CustomSuggester extends EditorSuggest<string> {
+export class CustomSuggester extends EditorSuggest<{
+	label: string;
+	value: string;
+}> {
 	editor: Editor;
 	cursor: EditorPosition;
 	plugin: CustomSuggesterPlugin;
@@ -149,16 +152,27 @@ export class CustomSuggester extends EditorSuggest<string> {
 			return nextBracketIndex === -1 ? 0 : nextBracketIndex;
 		};
 
-		for (const suggester of this.settings.suggesters.filter((s) => s.enable || !s.trigger.before)) {
+		const getBestMatchSuggesters = (text: string) => {
+			const matchedSuggesters = this.settings.suggesters.filter((s) => s.enable || !s.trigger.before).filter((s) => text.lastIndexOf(s.trigger.before) !== -1);
+			return matchedSuggesters.sort((a, b) => b.trigger.before.length - a.trigger.before.length);
+		};
+
+		for (const suggester of getBestMatchSuggesters(textUntilCursor)) {
 			const targetWord = suggester.trigger.before;
 			const index = getBracketIndex(textUntilCursor, targetWord);
+
+			// Check if has other longer target word and also matched
+			// If so skip the current target word
+
 
 			if (index === 0 && textUntilCursor === '') continue;
 			const targetText = textUntilCursor.slice(index);
 			const afterTargetWord = textUntilCursor.slice(index + targetWord.length);
 
+			if (afterTargetWord.length > this.plugin.settings.maxMatchWordlength) continue;
+
 			// Check if the sliced text contains punctuation
-			if (this.containsPunctuation(targetText) && !(targetText.startsWith(targetWord))) {
+			if ((this.containsPunctuation(targetText) && !(targetText.startsWith(targetWord))) || (suggester.trigger.after && targetText.contains(suggester.trigger.after))) {
 				continue;
 			}
 
@@ -197,10 +211,13 @@ export class CustomSuggester extends EditorSuggest<string> {
 		return null;
 	}
 
-	async getSuggestions(context: EditorSuggestContext): Promise<string[]> {
+	async getSuggestions(context: EditorSuggestContext): Promise<{
+		label: string;
+		value: string;
+	}[]> {
 		const lowerCaseInputStr = context.query.toLocaleLowerCase();
 
-		console.log(context);
+
 		let data: string[] = [];
 		switch (this.currentSuggester.type) {
 			case "text":
@@ -225,7 +242,6 @@ export class CustomSuggester extends EditorSuggest<string> {
 				data = this.currentSuggester.suggestion as string[];
 				break;
 		}
-
 
 		if (data.includes(lowerCaseInputStr)) return [];
 
@@ -307,7 +323,7 @@ class NewSuggestItemModal extends Modal {
 
 	onOpen() {
 		this.modalEl.toggleClass('custom-suggester-add-new-modal', true);
-		this.setTitle('Add new suggestion');
+		this.setTitle('Add new item');
 
 		const documentFragment = document.createDocumentFragment();
 		const inputEl = documentFragment.createEl('input');
