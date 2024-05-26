@@ -7,7 +7,7 @@ import {
 	EditorSuggestContext,
 	EditorSuggestTriggerInfo,
 	FuzzyMatch,
-	Modal,
+	Modal, Notice,
 	prepareFuzzySearch,
 	setIcon
 } from "obsidian";
@@ -45,7 +45,10 @@ export class CustomSuggester extends EditorSuggest<{
 	private isLineStart = false;
 	readonly suggesterType = 'custom-suggester';
 
-	private currentSuggestions: string[] = [];
+	private currentSuggestions: {
+		label: string;
+		value: string;
+	}[] = [];
 
 	public params: {
 		app: App;
@@ -63,6 +66,7 @@ export class CustomSuggester extends EditorSuggest<{
 
 		for (let i = 0; i < 10; i++) {
 			this.scope.register(['Mod'], (i === 9 ? 0 : (i + 1)).toString(), () => {
+				console.log(this.currentSuggestions[i]);
 				if (!this.currentSuggestions[i]) return;
 				this.selectSuggestion(this.currentSuggestions[i], new MouseEvent('click'));
 				this.close();
@@ -84,12 +88,19 @@ export class CustomSuggester extends EditorSuggest<{
 
 	// readonly CUSTOM_BRACKET_REGEX = /【([^】]*)$/;
 
-	fuzzySearchItemsOptimized(query: string, items: string[]): FuzzyMatch<string>[] {
+	fuzzySearchItemsOptimized(query: string, items: {
+		label: string;
+		value: string;
+	}[]): FuzzyMatch<{
+		label: string;
+		value: string;
+	}>[] {
 		const preparedSearch = prepareFuzzySearch(query);
 
 		return items
 			.map((item) => {
-				const result = preparedSearch(item);
+				const result = preparedSearch(item.value);
+				console.log(result, item, query);
 				if (result) {
 					return {
 						item: item,
@@ -100,7 +111,10 @@ export class CustomSuggester extends EditorSuggest<{
 				return null;
 			})
 			.sort((a, b) => (b?.score || 0) - (a?.score || 0))
-			.filter(Boolean) as FuzzyMatch<string>[];
+			.filter(Boolean) as FuzzyMatch<{
+			label: string;
+			value: string;
+		}>[];
 	}
 
 
@@ -190,7 +204,9 @@ export class CustomSuggester extends EditorSuggest<{
 				this.currentSuggester = suggester;
 				this.currentIndex = index;
 
-				if ((cursor.ch - matchedText.length - removeBefore) === 0) {
+				console.log(cursor.ch, matchedText.length, removeBefore);
+
+				if ((cursor.ch - matchedText.length) === 0) {
 					this.isLineStart = true;
 				}
 
@@ -211,87 +227,101 @@ export class CustomSuggester extends EditorSuggest<{
 		return null;
 	}
 
-	async getSuggestions(context: EditorSuggestContext): Promise<{
-		label: string;
-		value: string;
-	}[]> {
+	async getSuggestions(context: EditorSuggestContext): Promise<{ label: string; value: string; }[]> {
 		const lowerCaseInputStr = context.query.toLocaleLowerCase();
 
+		console.log(lowerCaseInputStr);
 
-		let data: string[] = [];
+		let data: { label: string; value: string; }[] = [];
 		switch (this.currentSuggester.type) {
 			case "text":
-				data = this.currentSuggester.suggestion as string[];
+				data = (this.currentSuggester.suggestion as string[]).map(s => ({label: s, value: s}));
 				break;
 			case "link":
 				const folder = this.app.vault.getFolderByPath(this.currentSuggester.suggestion as string);
 				if (folder) {
 					const files = getFilesInFolder(folder);
-					data = files.map((file) => this.app.metadataCache.fileToLinktext(file, '') as string);
+					data = files.map((file) => ({
+						label: this.app.metadataCache.fileToLinktext(file, ''),
+						value: this.app.metadataCache.fileToLinktext(file, '')
+					}));
 				}
 				break;
 			case "function":
-				// data = (this.currentSuggester.suggestion as () => string[]).call(this);
-				// const a = new Function('context', this.currentSuggester.suggestion as string);
-				data = await this.runAndGetOutput({
+				const result = await this.runAndGetOutput({
 					trigger: this.currentSuggester.trigger.before,
 					query: context.query,
-				}, this.currentSuggester.suggestion as string) as string[] || [];
+				}, this.currentSuggester.suggestion as string);
+				console.log(result);
+				data = result ? result.map((s: string | {
+					label: string;
+					value: string;
+				}) => {
+					console.log(s);
+					if (typeof s === 'string') {
+						return {label: s, value: s};
+					}
+					return s;
+				}) : [];
 				break;
 			default:
-				data = this.currentSuggester.suggestion as string[];
+				data = (this.currentSuggester.suggestion as string[]).map(s => ({label: s, value: s}));
 				break;
 		}
 
-		if (data.includes(lowerCaseInputStr)) return [];
+		// if (!lowerCaseInputStr) return [];
+		if (lowerCaseInputStr && data.some((d) => d.label.toLocaleLowerCase() === lowerCaseInputStr.trim())) return [];
 
 		if (context.query.length > this.plugin.settings.maxMatchWordlength) return [];
-		if (context.query === this.currentSuggester.trigger.before) return [...data];
+		if (context.query === this.currentSuggester.trigger.before) return data;
 
-		const results = this.fuzzySearchItemsOptimized(lowerCaseInputStr, data).map((match) => match.item);
-		const renewResults = this.plugin.settings.showAddNewButton && this.currentSuggester.type === 'text' ? [...results, '++add++' + (context.query.toLocaleLowerCase() || 'Add new')] : results;
+		const results = this.fuzzySearchItemsOptimized(lowerCaseInputStr, data);
+		const renewResults = results.map((match) => ({
+			label: match.item.label,
+			value: match.item.value
+		}));
+		if (this.plugin.settings.showAddNewButton && this.currentSuggester.type === 'text') {
+			renewResults.push({label: 'Add new', value: '++add++' + (context.query.toLocaleLowerCase() || 'Add new')});
+		}
 
-		// this.suggestions = renewResults;
 		this.currentSuggestions = renewResults;
-
-		console.log(this.currentSuggestions);
-
 		return renewResults;
 	}
 
-	renderSuggestion(value: string, el: HTMLElement): void {
+	renderSuggestion(suggestion: { label: string; value: string }, el: HTMLElement): void {
 		el.toggleClass('custom-suggester-item', true);
-		if (value.startsWith('++add++') && this.currentSuggester.type === 'text') {
+		if (suggestion.value.startsWith('++add++') && this.currentSuggester.type === 'text') {
 			const iconEl = el.createEl("span", {
 				cls: "custom-suggester-item-icon",
 			});
 			const textEl = el.createEl("span");
 			setIcon(iconEl, 'plus');
-			textEl.setText(value.replace('++add++', ''));
+			textEl.setText(suggestion.label.replace('++add++', ''));
 			return;
 		}
-		el.setText(value);
+		console.log(suggestion.label, suggestion.value);
+		el.setText(suggestion.label);
 	}
 
-	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
-		console.log(this, this.context);
-
-		if (value.startsWith('++add++') && this.currentSuggester.type === 'text') {
+	selectSuggestion(suggestion: { label: string; value: string }, evt: MouseEvent | KeyboardEvent): void {
+		if (suggestion.value.startsWith('++add++') && this.currentSuggester.type === 'text') {
 			evt.preventDefault();
-			new NewSuggestItemModal(this.app, value.replace('++add++', ''), (newValue) => {
+			new NewSuggestItemModal(this.app, suggestion.label.replace('++add++', ''), (newValue) => {
 				(this.currentSuggester.suggestion as string[]).push(newValue);
 				this.plugin.saveSettings();
 			}).open();
 			return;
 		}
 
-		let target = value + (this.hasBracketEnd ? '' : this.currentSuggester.trigger.after);
+		let target = suggestion.value + (this.hasBracketEnd ? '' : this.currentSuggester.trigger.after);
 		if (this.currentSuggester.type === 'link') {
-			target = `[[${value}]]`;
+			target = `[[${suggestion.label}]]`;
 		}
 
 		const cursorOffset = this.currentSuggester.type === 'link' ? 4 : 0;
 		const startCursor = (this.isLineStart && this.currentSuggester.trigger.removeBefore ? 0 : (this.context?.start?.ch || this.cursor.ch)) + cursorOffset;
+
+		console.log(target, this.cursor, startCursor, this.context?.start?.ch, this.cursor.ch, this.isLineStart, this.currentSuggester.trigger.removeBefore, this.currentSuggester.trigger.after.length, this.hasBracketEnd);
 
 		this.editor.replaceRange(
 			target,
@@ -307,12 +337,13 @@ export class CustomSuggester extends EditorSuggest<{
 
 		this.editor.setCursor({
 			line: this.cursor.line,
-			ch: this.cursor.ch + value.length - (this.cursor.ch - startCursor) + (this.hasBracketEnd ? 0 : this.currentSuggester.trigger.after.length),
+			ch: this.cursor.ch + suggestion.value.length - (this.cursor.ch - startCursor) + (this.hasBracketEnd ? 0 : this.currentSuggester.trigger.after.length),
 		});
 		this.isLineStart = false;
 
 		this.close();
 	}
+
 }
 
 class NewSuggestItemModal extends Modal {
