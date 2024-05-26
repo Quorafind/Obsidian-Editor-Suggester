@@ -60,10 +60,7 @@ export default defineConfig(({mode}) => {
 					'@codemirror/lint',
 					'@codemirror/search',
 					'@codemirror/state',
-					'@codemirror/view',
-					'@lezer/common',
-					'@lezer/highlight',
-					'@lezer/lr', ...builtins
+					'@codemirror/view', ...builtins
 				],
 			},
 			// Use root as the output dir
