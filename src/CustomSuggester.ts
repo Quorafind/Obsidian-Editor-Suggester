@@ -7,7 +7,7 @@ import {
 	EditorSuggestContext,
 	EditorSuggestTriggerInfo,
 	FuzzyMatch,
-	Modal, Notice,
+	Modal,
 	prepareFuzzySearch,
 	setIcon
 } from "obsidian";
@@ -237,7 +237,7 @@ export class CustomSuggester extends EditorSuggest<{
 			case "text":
 				data = (this.currentSuggester.suggestion as string[]).map(s => ({label: s, value: s}));
 				break;
-			case "link":
+			case "link": {
 				const folder = this.app.vault.getFolderByPath(this.currentSuggester.suggestion as string);
 				if (folder) {
 					const files = getFilesInFolder(folder);
@@ -247,7 +247,8 @@ export class CustomSuggester extends EditorSuggest<{
 					}));
 				}
 				break;
-			case "function":
+			}
+			case "function": {
 				const result = await this.runAndGetOutput({
 					trigger: this.currentSuggester.trigger.before,
 					query: context.query,
@@ -264,6 +265,8 @@ export class CustomSuggester extends EditorSuggest<{
 					return s;
 				}) : [];
 				break;
+			}
+
 			default:
 				data = (this.currentSuggester.suggestion as string[]).map(s => ({label: s, value: s}));
 				break;

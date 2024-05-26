@@ -131,6 +131,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		if (suggestions.length > 0) {
 			this.suggest.setSuggestions(suggestions);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			this.open((app as any).dom.appContainerEl, this.inputEl);
 		} else {
 			this.close();

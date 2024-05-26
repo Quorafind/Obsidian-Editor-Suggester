@@ -1,11 +1,13 @@
 import {
 	App,
 	debounce,
-	ExtraButtonComponent, Menu,
+	ExtraButtonComponent,
+	Menu,
 	Modal,
 	Notice,
 	PluginSettingTab,
-	Setting, setTooltip, TextAreaComponent,
+	Setting,
+	TextAreaComponent,
 	ToggleComponent
 } from "obsidian";
 import CustomSuggesterPlugin from "./customSuggesterIndex";
@@ -25,7 +27,9 @@ import { EditorState, Extension } from "@codemirror/state";
 import {
 	drawSelection,
 	dropCursor,
-	EditorView, highlightActiveLine, highlightActiveLineGutter,
+	EditorView,
+	highlightActiveLine,
+	highlightActiveLineGutter,
 	highlightSpecialChars,
 	keymap,
 	lineNumbers,
@@ -201,7 +205,7 @@ export class CustomSuggesterSettingTab extends PluginSettingTab {
 			})
 		);
 
-		const addNewSuggester = new Setting(containerEl)
+		new Setting(containerEl)
 			.setName('Add new editor suggester')
 			.setDesc('Create a new custom editor suggester')
 			.addButton((button) => button
@@ -514,7 +518,7 @@ class InputModal extends Modal {
 	plugin: CustomSuggesterPlugin;
 	type: 'link' | 'text' | 'function' = 'text';
 
-	value: string = '';
+	value = '';
 	editor: EditorView;
 
 	constructor(app: App, plugin: CustomSuggesterPlugin, readonly suggestion: SuggesterInfo, readonly cb: (value: string, type: 'link' | 'text' | 'function') => void) {
@@ -536,7 +540,7 @@ class InputModal extends Modal {
 		this.contentEl.empty();
 
 		const fragment = document.createDocumentFragment();
-		const typeSelectorEl = fragment.createEl('div', {
+		fragment.createEl('div', {
 			cls: 'custom-editor-suggester-type-selector',
 		});
 		// new Setting(typeSelectorEl).setName('Suggester type').addDropdown((dropdown) => {
@@ -678,11 +682,12 @@ class ImportModal extends Modal {
 }
 
 function editorFromTextArea(textarea: HTMLTextAreaElement, extensions: Extension) {
-	let view = new EditorView({
+	const view = new EditorView({
 		state: EditorState.create({doc: textarea.value, extensions}),
 	});
 
-	textarea.parentNode!.insertBefore(view.dom, textarea);
+	if (!textarea.parentNode) return view;
+	textarea.parentNode.insertBefore(view.dom, textarea);
 	textarea.style.display = "none";
 	if (textarea.form)
 		textarea.form.addEventListener("submit", () => {

@@ -1,0 +1,335 @@
+.custom-editor-suggester-textarea {
+	width: 550px;
+	height: 250px;
+
+	resize: none;
+
+	overflow: auto;
+}
+
+.custom-editor-suggester-setting {
+	display: flex;
+	flex-direction: column;
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-setting-header {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 0.75em 0;
+	width: -webkit-fill-available;
+	gap: var(--size-2-1);
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-setting-header .custom-editor-suggester-setting-name-component {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 1 1 auto;
+}
+
+/*.custom-editor-suggester-setting .custom-editor-suggester-setting-header .custom-editor-suggester-setting-name-component .custom-editor-suggester-setting-name {*/
+/*	font-size: 1.1em;*/
+/*	font-weight: 600;*/
+/*}*/
+
+.custom-editor-suggester-setting .custom-editor-suggester-regex-info {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	width: 100%;
+
+	gap: var(--size-2-2);
+}
+
+.custom-editor-suggester-setting.collapsed .custom-editor-suggester-setting-header .custom-editor-suggester-setting-collapse svg {
+	transform: rotate(-90deg);
+}
+
+.custom-editor-suggester-setting.collapsed .custom-editor-suggester {
+	display: none;
+}
+
+.custom-editor-suggester-setting {
+	padding-top: 0.25rem;
+	transition: transform 0.3s;
+}
+
+.custom-editor-suggester-setting > *:first-child {
+	margin-inline-end: 0;
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-setting-header .custom-editor-suggester-setting-collapse svg {
+	transform: rotate(0deg);
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-setting-header .custom-editor-suggester-setting-collapse div {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-setting-header .custom-editor-suggester-setting-collapse div:hover {
+	background-color: unset;
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-regex-info .custom-editor-suggester-regex-intro {
+	font-size: var(--size-4-3);
+	color: var(--text-faint);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-prefix-input-group {
+	display: flex;
+	gap: var(--size-4-2);
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-prefix-toggle .clickable-icon.active {
+	background: var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.custom-editor-suggester {
+	display: flex;
+	flex-direction: column;
+	padding: var(--size-4-4);
+	width: -webkit-fill-available;
+
+	/*border-top: 1px dashed var(--background-modifier-border);*/
+
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+
+	gap: 0.5em;
+
+	box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+	&:hover {
+		box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+	}
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-suggestion, .custom-editor-suggester-setting .custom-editor-suggester-prefix, .custom-editor-suggester-setting .custom-editor-suggester-regex, .custom-editor-suggester-setting .custom-editor-suggester-suffix, .custom-editor-suggester-setting .custom-editor-suggester-name {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+
+	width: --webkit-fill-available;
+
+	font-size: 1em;
+	font-weight: 600;
+}
+
+.custom-editor-suggester-setting .custom-editor-suggester-suggestion .custom-editor-suggester-suggestion-btn-group {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+
+	position: relative;
+}
+
+.custom-editor-suggester-suggestion-list-group {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+
+	gap: var(--size-4-4);
+
+	z-index: 100;
+}
+
+.custom-editor-suggester-suggestion-list-group:hover > .custom-editor-suggester-suggestion-list {
+	display: flex;
+}
+
+.custom-editor-suggester-suggestion-list {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+
+	gap: var(--size-2-2);
+
+	width: 140px;
+	height: auto;
+	padding: var(--size-2-2);
+	font-size: var(--size-4-3);
+
+	position: absolute;
+	left: -32px;
+	top: 28px;
+
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.custom-editor-suggester-suggestion-list .custom-editor-suggester-suggestion-item:not(:last-child):after {
+	content: "";
+	width: 100%;
+	height: 1px;
+	background: var(--background-modifier-border);
+	margin-top: var(--size-2-2);
+}
+
+.custom-editor-suggester-suggestion-list .custom-editor-suggester-suggestion-item {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	padding: var(--size-2-1);
+}
+
+.custom-editor-suggester-suggestion-list.hide {
+	display: none;
+}
+
+.custom-editor-suggester-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+
+	gap: var(--size-4-4);
+}
+
+.custom-editor-suggester-modal .modal-content .custom-editor-suggester-suggestion-input {
+	width: 100%;
+	resize: none;
+	height: 350px;
+}
+
+.custom-editor-suggester-modal {
+	width: 90%;
+}
+
+.custom-editor-suggester-modal .modal-content .custom-editor-suggester-suggestion-input:focus {
+	box-shadow: none;
+}
+
+.custom-editor-suggester-modal .modal-content .custom-editor-suggester-btn-group {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+
+	width: 100%;
+	gap: var(--size-4-2);
+}
+
+.custom-editor-suggester-modal .custom-editor-suggester-type-selector {
+	width: 100%;
+}
+
+.custom-editor-suggester-modal .custom-editor-suggester-type-selector .setting-item {
+	padding-bottom: 0;
+}
+
+.custom-editor-suggester-modal .custom-editor-suggester-path-input {
+	width: 100%;
+}
+
+.custom-editor-suggester-modal .custom-editor-suggester-path-input .setting-item {
+	padding-bottom: 0;
+}
+
+/*.custom-editor-suggester-modal .custom-editor-suggester-path-input {*/
+/*	width: 100%;*/
+/*}*/
+
+/*.custom-editor-suggester-modal .custom-editor-suggester-path-input .setting-item {*/
+/*	padding-bottom: 0;*/
+/*}*/
+
+.custom-setting-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 18px;
+	font-weight: 500;
+	margin-bottom: var(--size-4-4);
+}
+
+.custom-setting-import-export {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	gap: var(--size-4-2);
+}
+
+.custom-setting-import-export .custom-setting-import .extra-setting-button, .custom-setting-import-export .custom-setting-export .extra-setting-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-normal);
+	font-size: var(--font-ui-medium);
+	line-height: var(--line-height-tight);
+	padding: var(--size-2-3) var(--size-2-2);
+	border-radius: var(--radius-s);
+	gap: var(--size-2-2);
+
+	border: 1px solid var(--background-modifier-border);
+}
+
+.custom-setting-import-export .custom-setting-import:hover, .custom-setting-import-export .custom-setting-export:hover {
+	background: var(--background-modifier-border);
+
+}
+
+.custom-editor-suggester-add-new-modal {
+	width: 350px;
+}
+
+.custom-editor-suggester-add-new-modal .modal-content {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-4-4);
+}
+
+.custom-editor-suggester-add-new-modal input {
+	width: 100%;
+}
+
+.custom-editor-suggester-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-2-2);
+
+	/*max-width: 120px;*/
+	/*overflow: hidden;*/
+	/*text-overflow: ellipsis;*/
+	/*white-space: nowrap;*/
+
+	--icon-size: var(--size-4-3);
+}
+
+.custom-suggeter-item .custom-editor-suggester-item-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+
+@media screen and (max-width: 768px) {
+	.custom-editor-suggester-regex-intro {
+		display: none;
+	}
+
+}
+
+.function-inputer {
+	height: 100%;
+}
+
+.custom-editor-suggester-suggestion-input .cm-editor {
+	height: 100%;
+}

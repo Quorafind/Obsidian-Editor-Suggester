@@ -1,7 +1,7 @@
-import { Plugin, setTooltip } from 'obsidian';
+import { Plugin } from 'obsidian';
 import { CustomSuggesterSettings, CustomSuggesterSettingTab, DEFAULT_SETTINGS } from "./customSuggesterSettings";
 import { CustomSuggester } from "./CustomSuggester";
-import { around } from "monkey-around";
+import './style/global.less';
 
 export default class CustomSuggesterPlugin extends Plugin {
 	private settingTab: CustomSuggesterSettingTab;
@@ -19,22 +19,10 @@ export default class CustomSuggesterPlugin extends Plugin {
 		this.registerEditorSuggest(
 			this.suggester
 		);
-
-		this.patchToolTip();
-
 	}
 
 	onunload() {
 
-	}
-
-	patchToolTip() {
-		const uninstaller = around(setTooltip, (next: any) => {
-			return (el: HTMLElement, tooltip: string, options: any) => {
-				console.log('tooltip', el, tooltip, options);
-				return next.call(this, el, tooltip, options);
-			};
-		});
 	}
 
 	public async loadSettings() {
